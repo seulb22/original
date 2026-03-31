@@ -34,10 +34,13 @@ def load_drama_data():
     try:
         df = pd.read_csv(url, skiprows=4)
         new_cols = list(df.columns)
-        if len(new_cols) >= 12:
+        
+        # 💡 [핵심 업데이트] I열(8번 인덱스)에 '종료시간' 추가 및 시청률 열 한 칸씩 이동
+        if len(new_cols) >= 13: # 전체 열 개수 증가 대비
             new_cols[2], new_cols[3], new_cols[4] = '연도', '프로그램명', '회차'
             new_cols[5], new_cols[7] = '요일', '시작시간'
-            new_cols[8], new_cols[9], new_cols[11] = '수도권 2049', '수도권 가구', '전국 가구'
+            new_cols[8] = '종료시간' # <--- 새로 추가된 I열
+            new_cols[9], new_cols[10], new_cols[12] = '수도권 2049', '수도권 가구', '전국 가구' # <--- 한 칸씩 밀림
             df.columns = new_cols
 
         df = df.dropna(subset=['프로그램명'])
@@ -122,7 +125,7 @@ def generate_advanced_ai_report(p_df, prog_name, full_df):
 
     report = f"### 💡 [{prog_name}] 핵심 성과 심층 분석\n\n"
 
-    report += "🏆 **1. 역대 ENA 오리지널 통합 포지셔닝**\n"
+    report += "🏆 **1. 역대 오리지널 통합 포지셔닝**\n"
     report += f"- **핵심 타겟 (수도권 2049):** 역대 {total_progs}개 드라마 중 **전체 {my_rank_2049}위** (평균 {avg_2049:.3f}%)\n"
     report += f"- **대중성 (전국 가구):** 역대 {total_progs}개 드라마 중 **전체 {my_rank_hh}위** (평균 {avg_nat_hh:.3f}%)\n"
     if my_rank_2049 < my_rank_hh:
@@ -155,7 +158,6 @@ def generate_advanced_ai_report(p_df, prog_name, full_df):
 if df is not None and not df.empty:
     st.sidebar.title("🎬 통합 분석 컨트롤러")
     
-    # 💡 [핵심 추가] 데이터 강제 새로고침 버튼
     if st.sidebar.button("🔄 최신 시트 데이터 강제 새로고침", type="primary"):
         load_drama_data.clear()
         st.rerun()
