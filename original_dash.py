@@ -36,8 +36,6 @@ def load_drama_data():
     try:
         df = pd.read_csv(url, skiprows=4)
         new_cols = list(df.columns)
-        
-        # 💡 PD님 원본 구조 매칭 (G열: 일자, H열: 시작, I열: 종료)
         if len(new_cols) >= 13: 
             new_cols[2], new_cols[3], new_cols[4] = '연도', '프로그램명', '회차'
             new_cols[5], new_cols[6], new_cols[7], new_cols[8] = '요일', '일자', '시작시간', '종료시간'
@@ -62,13 +60,11 @@ def load_drama_data():
         
         df = df[df['연도'] > 2000]
 
-        # 편성 블록 카테고리화
         def categorize_slot(day, program):
             day, prog = str(day).strip(), str(program).strip()
             if prog == '악인전기' or (day in ['일요일', '일']):
                 if prog == '악인전기': return '🔄 일월 드라마'
                 if day in ['월요일', '화요일', '월', '화']: return '🌙 월화 드라마'
-                if day in ['일요일', '일']: return '🔄 일월 드라마'
             if day in ['월요일', '화요일', '월', '화']: return '🌙 월화 드라마'
             if day in ['수요일', '목요일', '수', '목']: return '☀️ 수목 드라마'
             if day in ['금요일', '토요일', '금', '토']: return '🔥 금토 드라마'
@@ -98,7 +94,6 @@ def load_minute_data():
     url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={GID_MINUTE}"
     try:
         raw_df = pd.read_csv(url, header=None, low_memory=False)
-        # PD님 가이드: 4행(Date), 5행(Region), 6행(Target) 매칭
         dates = raw_df.iloc[3].ffill().fillna("")
         regions = raw_df.iloc[4].fillna("")
         targets = raw_df.iloc[5].fillna("")
@@ -115,22 +110,7 @@ def load_minute_data():
 df_drama = load_drama_data()
 df_min = load_minute_data()
 
-# --- [3. 분석 리포트 함수] ---
-def generate_advanced_ai_report(p_df, prog_name, full_df):
-    p_df = p_df.sort_values('회차').reset_index(drop=True)
-    if len(p_df) < 2: return f"**[{prog_name}]** 데이터가 부족하여 분석이 어렵습니다."
-    avg_all = full_df.groupby('프로그램명')[['수도권 2049', '수도권 가구', '전국 가구']].mean()
-    rank_2049 = avg_all['수도권 2049'].rank(ascending=False, method='min')
-    my_rank = int(rank_2049.loc[prog_name])
-    avg_2049 = p_df['수도권 2049'].mean()
-    avg_hh = p_df['수도권 가구'].mean()
-    target_ratio = (avg_2049 / avg_hh * 100) if avg_hh > 0 else 0
-    report = f"### 💡 [{prog_name}] 핵심 성과 심층 분석\n"
-    report += f"- **채널 내 포지션:** 역대 드라마 중 수도권 2049 기준 **전체 {my_rank}위** (평균 {avg_2049:.3f}%)\n"
-    report += f"- **타겟 집중도:** 가구 대비 2049 비중 **{target_ratio:.1f}%**\n"
-    return report
-
-# --- [4. 메인 화면 및 사이드바 로직 복구] ---
+# --- [3. 메인 화면 구성 및 사이드바] ---
 if df_drama is not None and not df_drama.empty:
     st.sidebar.title("🎬 통합 분석 컨트롤러")
     if st.sidebar.button("🔄 최신 시트 데이터 강제 새로고침", type="primary"):
@@ -140,7 +120,7 @@ if df_drama is not None and not df_drama.empty:
         
     st.sidebar.markdown("---")
     
-    # 💡 [복구] 연도 선택 3열 배치
+    # 💡 [UI 복구] 사이드바 연도 선택 3열 배치
     st.sidebar.markdown("**📅 분석 연도 (추세/랭킹 탭 적용)**")
     years = sorted(df_drama['연도'].unique(), reverse=True)
     year_cols = st.sidebar.columns(3)
@@ -159,43 +139,49 @@ if df_drama is not None and not df_drama.empty:
     st.sidebar.markdown("---")
     st.sidebar.markdown("**🎥 비교 프로그램 선택 (추세 탭 적용)**")
     progs = sorted(f_df['프로그램명'].unique())
-    c1, c2 = st.sidebar.columns(2)
-    if c1.button("✅ 전체 선택"):
-        for p in progs: st.session_state[f"prog_{p}"] = True
-    if c2.button("❌ 전체 해제"):
-        for p in progs: st.session_state[f"prog_{p}"] = False
     
+    # 💡 [핵심 해결] 전체 선택/해제 로직 고도화
+    col1, col2 = st.sidebar.columns(2)
+    if col1.button("✅ 전체 선택"):
+        for p in progs: st.session_state[f"prog_{p}"] = True
+        st.rerun()
+    if col2.button("❌ 전체 해제"):
+        for p in progs: st.session_state[f"prog_{p}"] = False
+        st.rerun()
+
     selected_progs = []
-    with st.sidebar.container(height=250):
-        for p in progs:
-            if st.checkbox(p, value=st.session_state.get(f"prog_{p}", False), key=f"prog_{p}"):
-                selected_progs.append(p)
+    if progs:
+        with st.sidebar.container(height=250):
+            for p in progs:
+                # 💡 value 설정을 제거하고 key(session_state)만 사용하여 충돌 방지
+                if f"prog_{p}" not in st.session_state:
+                    st.session_state[f"prog_{p}"] = False
+                if st.checkbox(p, key=f"prog_{p}"):
+                    selected_progs.append(p)
 
     st.title("📊 ENA 드라마 전략 분석 리포트")
     tab1, tab2, tab3, tab4 = st.tabs(["📈 시청률 추세 대조", "🏆 편성 조건별 랭킹 보드", "🔍 프로그램 심층 분석", "⏱️ 분당 시청률 분석"])
     
-    # === TAB 1: 추세 대조 (PD님 원본 로직) ===
+    # === TAB 1: 추세 대조 ===
     with tab1:
         if selected_progs:
             display_df = f_df[f_df['프로그램명'].isin(selected_progs)]
-            st.subheader("🏁 다중 비교 요약 (평균)")
-            m1, m2, m3 = st.columns(3)
-            m1.metric("수도권 2049", f"{display_df['수도권 2049'].mean():.3f}%")
-            m2.metric("수도권 가구", f"{display_df['수도권 가구'].mean():.3f}%")
-            m3.metric("전국 가구", f"{display_df['전국 가구'].mean():.3f}%")
+            st.subheader(f"🏁 다중 비교 요약 (평균)")
+            c1, c2, c3 = st.columns(3)
+            c1.metric("수도권 2049", f"{display_df['수도권 2049'].mean():.3f}%")
+            c2.metric("수도권 가구", f"{display_df['수도권 가구'].mean():.3f}%")
+            c3.metric("전국 가구", f"{display_df['전국 가구'].mean():.3f}%")
             st.divider()
             fig1 = px.line(display_df.sort_values(['프로그램명', '회차']), x='회차', y='수도권 2049', color='프로그램명', markers=True)
             fig1.update_layout(template="plotly_white", height=500, xaxis=dict(dtick=1))
             st.plotly_chart(fig1, use_container_width=True)
-            st.subheader("📝 상세 편성 데이터 로그")
-            st.dataframe(display_df.sort_values(['연도', '프로그램명', '회차'], ascending=[False, True, True]), width='stretch')
-        else: st.warning("비교할 프로그램을 왼쪽 필터에서 선택해주세요.")
+        else:
+            st.warning("비교할 프로그램을 왼쪽 필터에서 선택해주세요.")
 
-    # === TAB 2: 랭킹 보드 (PD님 원본 구조: 전체 평균 + 맞춤 회차) ===
+    # === TAB 2: 랭킹 보드 ===
     with tab2:
         st.subheader("🏆 필터 조건 맞춤형 랭킹 보드")
-        rank_metric = st.radio("📊 순위 산정 기준 지표", ["수도권 2049", "수도권 가구", "전국 가구"], horizontal=True)
-        st.divider()
+        rank_metric = st.radio("📊 기준 지표", ["수도권 2049", "수도권 가구", "전국 가구"], horizontal=True, key="rank_radio")
         if not f_df.empty:
             r1, r2 = st.columns(2)
             with r1:
@@ -206,28 +192,29 @@ if df_drama is not None and not df_drama.empty:
             with r2:
                 st.markdown("#### 🎯 맞춤 회차 랭킹 보드")
                 all_eps = sorted([int(e) for e in f_df['회차'].unique() if e > 0])
-                default_eps = [1, 2] if 1 in all_eps and 2 in all_eps else ([1] if 1 in all_eps else [])
-                sel_eps = st.multiselect("분석할 회차를 선택하세요", all_eps, default=default_eps)
-                if sel_eps:
-                    ep_avg_df = f_df[f_df['회차'].isin(sel_eps)].groupby('프로그램명')[rank_metric].mean().round(3).reset_index().sort_values(rank_metric, ascending=False).reset_index(drop=True)
-                    ep_avg_df.index += 1
-                    st.dataframe(ep_avg_df.style.format({rank_metric: "{:.3f}%"}), width='stretch')
+                if all_eps:
+                    sel_eps = st.multiselect("분석할 회차를 선택하세요", all_eps, default=[1] if 1 in all_eps else [all_eps[0]])
+                    if sel_eps:
+                        ep_avg_df = f_df[f_df['회차'].isin(sel_eps)].groupby('프로그램명')[rank_metric].mean().round(3).reset_index().sort_values(rank_metric, ascending=False).reset_index(drop=True)
+                        ep_avg_df.index += 1
+                        st.dataframe(ep_avg_df.style.format({rank_metric: "{:.3f}%"}), width='stretch')
 
-    # === TAB 3: 심층 분석 (PD님 원본 AI 리포트 로직) ===
+    # === TAB 3: 심층 분석 ===
     with tab3:
-        st.subheader("🔍 ENA 오리지널 심층 분석 보고서")
-        c_yr, c_pg = st.columns(2)
-        with c_yr: target_yr = st.selectbox("📅 방영 연도 선택", ["전체 연도"] + sorted(df_drama['연도'].unique(), reverse=True))
-        with c_pg:
-            plist = sorted(df_drama['프로그램명'].unique()) if target_yr == "전체 연도" else sorted(df_drama[df_drama['연도'] == target_yr]['프로그램명'].unique())
-            target_prog = st.selectbox("🎯 분석 프로그램", plist)
-        if target_prog:
-            prog_df = df_drama[df_drama['프로그램명'] == target_prog].sort_values('회차')
-            st.markdown(generate_advanced_ai_report(prog_df, target_prog, df_drama))
-            fig3 = px.line(prog_df, x='회차', y=['수도권 2049', '수도권 가구', '전국 가구'], markers=True, title=f"[{target_prog}] 성과 추이")
+        st.subheader("🔍 프로그램별 심층 분석")
+        target_p = st.selectbox("🎯 분석 대상 프로그램", sorted(df_drama['프로그램명'].unique()))
+        if target_p:
+            p_df = df_drama[df_drama['프로그램명'] == target_p].sort_values('회차')
+            st.write(f"### [{target_p}] 성과 지표")
+            m1, m2, m3 = st.columns(3)
+            m1.metric("최고 수도권 2049", f"{p_df['수도권 2049'].max():.3f}%")
+            m2.metric("최고 수도권 가구", f"{p_df['수도권 가구'].max():.3f}%")
+            m3.metric("최고 전국 가구", f"{p_df['전국 가구'].max():.3f}%")
+            st.divider()
+            fig3 = px.line(p_df, x='회차', y=['수도권 2049', '수도권 가구'], markers=True, title=f"[{target_p}] 추이")
             st.plotly_chart(fig3, use_container_width=True)
 
-    # === TAB 4: 분당 시청률 분석 (현재 작동 중인 정밀 로직) ===
+    # === TAB 4: 분당 시청률 분석 ===
     with tab4:
         st.subheader("⏱️ 분당 시청률 정밀 분석 (2025~)")
         if df_min is None or df_min.empty:
@@ -236,7 +223,7 @@ if df_drama is not None and not df_drama.empty:
             c1, c2 = st.columns(2)
             with c1: 
                 latest_progs = sorted(df_drama[df_drama['연도'] >= 2025]['프로그램명'].unique())
-                sel_min_ps = st.multiselect("🎯 프로그램 선택 (2025년 이후)", latest_progs, key="min_ps")
+                sel_min_ps = st.multiselect("🎯 프로그램 선택", latest_progs, key="min_ps")
             with c2:
                 min_eps = sorted(df_drama[df_drama['프로그램명'].isin(sel_min_ps)]['회차'].unique()) if sel_min_ps else []
                 sel_min_es = st.multiselect("🔢 회차 선택", min_eps, key="min_es")
