@@ -72,25 +72,66 @@ def load_minute_data():
 df_drama = load_drama_data()
 df_min = load_minute_data()
 
-# --- [3. AI 전략 분석 엔진] ---
+# --- [3. 🤖 AI 초정밀 팩트 체크 엔진 7.0 (보정 및 복구 완료)] ---
 def generate_hyper_ai_insight(p_df, prog_name, full_df):
+    # 💡 [보정] 우영우 제외 베이스라인
     baseline_df = full_df[full_df['프로그램명'] != '이상한 변호사 우영우']
     this_year = p_df['연도'].iloc[0]
     year_baseline = baseline_df[baseline_df['연도'] == this_year]
     if year_baseline.empty: year_baseline = baseline_df
+    
+    year_avg_2049 = year_baseline['수도권 2049'].mean()
+    year_avg_hh = year_baseline['수도권 가구'].mean()
+    
     my_avg_2049 = p_df['수도권 2049'].mean()
-    my_peak_2049 = p_df['수도권 2049'].max()
+    my_avg_hh = p_df['수도권 가구'].mean()
     my_first_2049 = p_df.sort_values('회차').iloc[0]['수도권 2049']
+    my_peak_2049 = p_df['수도권 2049'].max()
+    my_last_2049 = p_df.sort_values('회차').iloc[-1]['수도권 2049']
+    
     growth_idx = (my_peak_2049 / my_first_2049) if my_first_2049 > 0 else 1
-    insight = f"### 🧐 [{prog_name}] AI 정밀 진단\n"
-    if growth_idx >= 1.3: insight += "📊 **[상승형]** 입소문과 타겟 파워가 강화되고 있습니다.\n"
-    else: insight += "📊 **[안정형]** 고정 시청층을 기반으로 방영 중입니다.\n"
+    target_power = (my_avg_2049 / year_avg_2049) if year_avg_2049 > 0 else 1
+    hh_power = (my_avg_hh / year_avg_hh) if year_avg_hh > 0 else 1
+
+    insight = f"### 🧐 [{prog_name}] AI 팩트 체크 리포트\n"
+    st.caption(f"※ '우영우' 제외 {this_year}년 드라마 평균 대비 분석 결과입니다.")
+
+    # [1단계: 성격 규정]
+    insight += "📊 **1. 작품 성격 분석**\n"
+    if growth_idx >= 1.5 and target_power > 1.2:
+        insight += "- **[개천에서 용 난 대박작]** 입소문만으로 시장을 장악했습니다. 확장성이 최상급입니다.\n"
+    elif growth_idx < 1.1 and target_power > 1.2:
+        insight += "- **[충성 팬덤 기반의 니치작]** 신규 유입은 적으나 핵심 타겟을 끝까지 사수했습니다.\n"
+    elif hh_power > 1.2 and target_power < 0.8:
+        insight += "- **[속 빈 강정형 대중작]** 가구는 높으나 핵심 타겟(2049)은 경쟁사에 뺏긴 실속 없는 성적입니다.\n"
+    elif growth_idx < 0.9:
+        insight += "- **[전략적 실패/용두사미]** 첫방 이후 시청자가 계속 이탈하고 있습니다. 서사 동력 상실이 우려됩니다.\n"
+    else:
+        insight += "- **[안정적 방어형]** 채널의 기본 체력을 안정적으로 유지해준 자산입니다.\n"
+
+    # [2단계: 시청층 구조 진단]
+    insight += "\n🏢 **2. 시청층 구조 진단 (입체 비교)**\n"
+    if (my_avg_2049 > year_avg_2049) and (my_avg_hh > year_avg_hh):
+        insight += f"- **구조: [채널 필승작]** 가구와 타겟 모두 역대 평균 상회. **최고의 효자 작품**입니다.\n"
+    elif (my_avg_2049 > year_avg_2049) and (my_avg_hh <= year_avg_hh):
+        insight += f"- **구조: [2049 특화작]** 가구는 낮으나 젊은 타겟 응집력이 압도적인 **고효율 광고 상품**입니다.\n"
+    elif (my_avg_2049 <= year_avg_2049) and (my_avg_hh > year_avg_hh):
+        insight += f"- **구조: [매스/노후화 경보]** 가구 유입은 성공적이나 2049 유인책이 부족한 **고연령 편중** 상태입니다.\n"
+    else:
+        insight += f"- **구조: [전략적 고립]** 가구와 타겟 모두 채널 베이스라인 미달. 장르적 재검토가 필수적입니다.\n"
+
+    # [3단계: 뒷심 진단]
+    insight += "\n📈 **3. 화제성 및 뒷심**\n"
+    if my_last_2049 >= my_peak_2049 * 0.95: insight += "- **진단:** 최고점 시청률을 종영까지 지켜낸 강력한 팬덤을 확인했습니다.\n"
+    elif my_last_2049 < my_peak_2049 * 0.7: insight += f"- **진단:** 최고점 대비 **{int((1-my_last_2049/my_peak_2049)*100)}% 폭락**. 후반부 경쟁력 상실이 뼈아픕니다.\n"
+    else: insight += "- **진단:** 화제성이 다소 정체되었으나 무난한 마무리입니다.\n"
+
     return insight
 
-# --- [4. 메인 화면 구성] ---
+# --- [4. 메인 대시보드 구성] ---
 if df_drama is not None and not df_drama.empty:
     st.sidebar.title("🎬 통합 분석 컨트롤러")
-    if st.sidebar.button("🔄 데이터 강제 새로고침", type="primary"):
+    if st.sidebar.button("🔄 데이터 새로고침", type="primary"):
         load_drama_data.clear()
         load_minute_data.clear()
         st.rerun()
@@ -103,17 +144,18 @@ if df_drama is not None and not df_drama.empty:
     f_df = df_drama[df_drama['연도'].isin(selected_year)]
     progs = sorted(f_df['프로그램명'].unique())
     
+    # 처음 접속 시 전체 선택
     if "first_load_done" not in st.session_state:
         for p in progs: st.session_state[f"prog_{p}"] = True
         st.session_state["first_load_done"] = True
 
     st.sidebar.markdown("---")
     st.sidebar.markdown("**🎥 비교 프로그램 선택**")
-    col1, col2 = st.sidebar.columns(2)
-    if col1.button("✅ 전체 선택"):
+    c1, c2 = st.sidebar.columns(2)
+    if c1.button("✅ 전체 선택"):
         for p in progs: st.session_state[f"prog_{p}"] = True
         st.rerun()
-    if col2.button("❌ 전체 해제"):
+    if c2.button("❌ 전체 해제"):
         for p in progs: st.session_state[f"prog_{p}"] = False
         st.rerun()
 
@@ -121,6 +163,7 @@ if df_drama is not None and not df_drama.empty:
     with st.sidebar.container(height=250):
         for p in progs: st.checkbox(p, key=f"prog_{p}")
 
+    st.title("📊 ENA 드라마 전략 분석 리포트")
     tab1, tab2, tab3, tab4 = st.tabs(["📈 시청률 추세 대조", "🏆 편성 랭킹 보드", "🔍 프로그램 심층 분석", "⏱️ 분당 시청률 분석"])
     
     with tab1:
@@ -138,7 +181,7 @@ if df_drama is not None and not df_drama.empty:
             st.dataframe(avg_df.style.format({rank_metric: "{:.3f}%"}), width='stretch')
         with r2:
             all_eps = sorted([int(e) for e in f_df['회차'].unique() if e > 0])
-            sel_eps = st.multiselect("분석할 회차 선택", all_eps, default=[1] if 1 in all_eps else [])
+            sel_eps = st.multiselect("회차 선택", all_eps, default=[1] if 1 in all_eps else [])
             if sel_eps:
                 ep_avg_df = f_df[f_df['회차'].isin(sel_eps)].groupby('프로그램명')[rank_metric].mean().round(3).reset_index().sort_values(rank_metric, ascending=False).reset_index(drop=True)
                 ep_avg_df.index += 1
@@ -146,33 +189,29 @@ if df_drama is not None and not df_drama.empty:
 
     with tab3:
         st.subheader("🔍 프로그램별 전략 심층 진단")
-        target_p = st.selectbox("🎯 분석 대상 선택", sorted(df_drama['프로그램명'].unique()))
+        target_p = st.selectbox("🎯 분석 대상", sorted(df_drama['프로그램명'].unique()))
         if target_p:
             p_df = df_drama[df_drama['프로그램명'] == target_p].sort_values('회차')
+            # 💡 [복구 완료] AI 인사이트 엔진 7.0 출력
             st.markdown(generate_hyper_ai_insight(p_df, target_p, df_drama))
             st.divider()
-            m1_val, m1_ep = p_df['수도권 2049'].max(), p_df.loc[p_df['수도권 2049'].idxmax(), '회차']
-            m2_val, m2_ep = p_df['수도권 가구'].max(), p_df.loc[p_df['수도권 가구'].idxmax(), '회차']
-            m3_val, m3_ep = p_df['전국 가구'].max(), p_df.loc[p_df['전국 가구'].idxmax(), '회차']
+            m1_v, m1_e = p_df['수도권 2049'].max(), p_df.loc[p_df['수도권 2049'].idxmax(), '회차']
+            m2_v, m2_e = p_df['수도권 가구'].max(), p_df.loc[p_df['수도권 가구'].idxmax(), '회차']
+            m3_v, m3_e = p_df['전국 가구'].max(), p_df.loc[p_df['전국 가구'].idxmax(), '회차']
             m1, m2, m3 = st.columns(3)
-            m1.metric("최고 수도권 2049", f"{m1_val:.3f}%", f"{m1_ep}회")
-            m2.metric("최고 수도권 가구", f"{m2_val:.3f}%", f"{m2_ep}회")
-            m3.metric("최고 전국 가구", f"{m3_val:.3f}%", f"{m3_ep}회")
+            m1.metric("최고 수도권 2049", f"{m1_v:.3f}%", f"{m1_e}회")
+            m2.metric("최고 수도권 가구", f"{m2_v:.3f}%", f"{m2_e}회")
+            m3.metric("최고 전국 가구", f"{m3_v:.3f}%", f"{m3_e}회")
             fig3 = px.line(p_df, x='회차', y=['수도권 2049', '수도권 가구', '전국 가구'], markers=True, title=f"[{target_p}] 주요 지표 추이")
             st.plotly_chart(fig3, width='stretch')
 
-    # === [💡 탭 4: 분당 분석 - 배율 최적화 및 최저점 표시] ===
     with tab4:
         st.subheader("⏱️ 분당 시청률 정밀 분석 (2025~)")
         if df_min is None or df_min.empty: st.warning("데이터 로드 실패")
         else:
             c1, c2 = st.columns(2)
-            with c1: 
-                latest_progs = sorted(df_drama[df_drama['연도'] >= 2025]['프로그램명'].unique())
-                sel_min_ps = st.multiselect("🎯 프로그램 선택", latest_progs, key="min_ps")
-            with c2:
-                min_eps = sorted(df_drama[df_drama['프로그램명'].isin(sel_min_ps)]['회차'].unique()) if sel_min_ps else []
-                sel_min_es = st.multiselect("🔢 회차 선택", min_eps, key="min_es")
+            with c1: latest_progs = sorted(df_drama[df_drama['연도'] >= 2025]['프로그램명'].unique()); sel_min_ps = st.multiselect("🎯 프로그램 선택", latest_progs, key="min_ps")
+            with c2: min_eps = sorted(df_drama[df_drama['프로그램명'].isin(sel_min_ps)]['회차'].unique()) if sel_min_ps else []; sel_min_es = st.multiselect("🔢 회차 선택", min_eps, key="min_es")
             
             if sel_min_ps and sel_min_es:
                 st.markdown("**📊 분석 지표 선택 (복수 선택 가능)**")
@@ -192,7 +231,6 @@ if df_drama is not None and not df_drama.empty:
                         if not info.empty:
                             target_d = "".join(re.findall(r'\d+', str(info.iloc[0]['일자'])))
                             s_t, e_t = str(info.iloc[0]['시작시간']).strip(), str(info.iloc[0]['종료시간']).strip()
-                            
                             for m_name in sel_metrics:
                                 reg, aud = metric_map[m_name]
                                 matching_col = [c for c in df_min.columns if target_d in "".join(re.findall(r'\d+', str(c))) and reg in c and aud in c]
@@ -201,26 +239,20 @@ if df_drama is not None and not df_drama.empty:
                                     df_min['time_key'] = df_min.iloc[:, 3].astype(str).str.split(' - ').str[0]
                                     plot_df = df_min[(df_min['time_key'] >= s_t) & (df_min['time_key'] <= e_t)].copy()
                                     plot_df[col] = pd.to_numeric(plot_df[col].astype(str).str.replace(',',''), errors='coerce').fillna(0)
-                                    
                                     if not plot_df.empty:
                                         fig4.add_trace(go.Scatter(x=plot_df['time_key'], y=plot_df[col], mode='lines', name=f"{p} {e}회_{m_name}"))
                                         pk_v, pk_t = plot_df[col].max(), plot_df.loc[plot_df[col].idxmax(), 'time_key']
                                         bt_v, bt_t = plot_df[col].min(), plot_df.loc[plot_df[col].idxmin(), 'time_key']
                                         peak_cards.append({"label": f"{p} {e}회 {m_name}", "val": pk_v, "time": pk_t})
-                                        
-                                        # 💡 마커 표시 (최고: 빨간 삼각형, 최저: 파란 역삼각형)
                                         fig4.add_trace(go.Scatter(x=[pk_t], y=[pk_v], mode='markers', marker=dict(color='red', size=10, symbol='triangle-up'), showlegend=False))
                                         fig4.add_trace(go.Scatter(x=[bt_t], y=[bt_v], mode='markers', marker=dict(color='blue', size=10, symbol='triangle-down'), showlegend=False))
 
                 if peak_cards:
-                    st.divider()
-                    cols = st.columns(len(peak_cards) if len(peak_cards) <= 4 else 4)
-                    for idx, card in enumerate(peak_cards):
-                        with cols[idx % 4]:
-                            st.metric(f"🏆 {card['label']} 최고", f"{card['val']:.3f}%", f"⏰ {card['time']}")
+                    st.divider(); cols = st.columns(min(len(peak_cards), 4))
+                    for i, c in enumerate(peak_cards):
+                        with cols[i % 4]: st.metric(f"🏆 {c['label']} 최고", f"{c['val']:.3f}%", f"⏰ {c['time']}")
                     st.divider()
 
-                # 💡 [해결] 높이를 500으로 재조정하여 세로로 길어지는 현상 해결
                 fig4.update_layout(height=500, template="plotly_white", xaxis=dict(title="방송 시간", tickangle=45), hovermode="x unified",
                                    legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.02))
                 st.plotly_chart(fig4, width='stretch')
