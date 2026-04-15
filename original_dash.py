@@ -73,7 +73,7 @@ def load_minute_data():
 df_drama = load_drama_data()
 df_min = load_minute_data()
 
-# --- [3. 🤖 AI 초정밀 전략 분석 엔진 12.5 (로직 절대 보존)] ---
+# --- [3. 🤖 AI 초정밀 전략 분석 엔진 12.5 (파트 4 곡선 패턴 인식 추가)] ---
 def generate_hyper_ai_insight(p_df, prog_name, full_df):
     baseline_all = full_df[~full_df['프로그램명'].str.contains('우영우', na=False)]
     this_year = p_df['연도'].iloc[0]
@@ -121,15 +121,61 @@ def generate_hyper_ai_insight(p_df, prog_name, full_df):
     else:
         insight += f"  👉 중반부인 **{my_peak_ep}회**를 기점으로 화제성의 변곡점을 맞이했습니다. 특정 에피소드가 일시적 고점을 형성했으나 그 탄력을 종영까지 지속하는 데에는 한계가 있었습니다.\n"
 
+    # 💡 [여기서부터 완벽 교체] 단순 성장률이 아닌 '전체 방영 곡선(Curve)'과 '실제 수치'를 결합한 입체적 패턴 진단
     insight += "\n### 📂 4. 전략적 성과 최종 결론\n"
-    if retention < 70:
-        insight += f"- **[이탈 제어 실패]:** 최고점 대비 종영 유지율이 **{retention:.1f}%**에 그쳤습니다. **{prog_name}**이 보여준 초반의 우상향은 기획의 승리였으나, 후반부 서사 동력 상실로 인해 프로젝트의 최종 완성도 면에서는 유실이 컸던 결과로 기록되었습니다.\n"
-    elif growth > 40:
-        insight += f"- **[바이럴 포텐셜 증명]:** 첫 방송 대비 시청률을 **{growth:.1f}%**나 끌어올린 저력은 **{prog_name}**만의 독보적인 성과입니다. 방영 기간 내내 채널의 화제성 지수를 견인한 효자 IP 역할을 완수했습니다.\n"
-    elif yr_perf < -15:
-        insight += f"- **[타겟 불일치 확인]:** 당시 시청 트렌드와 본 프로젝트의 소구점이 어긋났음이 수치로 입증되었습니다. 소재의 참신함은 있었으나 대중적 확산에는 도달하지 못한 전략적 미달 사례로 남았습니다.\n"
+    
+    ep_vals = p_df['수도권 2049'].tolist()
+    ep_nums = p_df['회차'].tolist()
+    n_eps = len(ep_vals)
+    
+    if n_eps >= 6:
+        peak_val = max(ep_vals)
+        peak_idx = ep_vals.index(peak_val)
+        peak_ep = ep_nums[peak_idx]
+        
+        min_val = min(ep_vals)
+        min_idx = ep_vals.index(min_val)
+        min_ep = ep_nums[min_idx]
+        
+        first_val = ep_vals[0]
+        last_val = ep_vals[-1]
+        
+        # 전반부 vs 중후반부 데이터 분리
+        mid_point = n_eps // 2
+        drop_rate = (1 - (min_val / peak_val)) * 100 if peak_val > 0 else 0
+        rebound_rate = ((last_val / ep_vals[-2]) - 1) * 100 if ep_vals[-2] > 0 else 0
+        
+        # 패턴 1: 딜리버리맨 케이스 (전반적인 시청률 기근 및 채널 평균 대폭 하회)
+        if yr_perf < -30 and peak_val < yr_avg_2049 * 0.7:
+            insight += f"- **[절대적 유입량 부족 및 고전]:** 채널 평균 대비 **{yr_perf:.1f}%**라는 수치가 보여주듯, 방영 기간 내내 타겟 시청층의 이목을 끄는 데 큰 어려움을 겪었습니다. 최고 시청률조차 **{peak_val:.3f}%**({peak_ep}회)에 그치며 유의미한 반등 모멘텀을 만들지 못했습니다. 기획된 소재나 장르가 당시 ENA의 주 시청 타겟과 완전히 엇갈렸거나, 대진운 등 외부 요인의 타격이 컸던 뼈아픈 사례로 남았습니다.\n"
+            
+        # 패턴 2: 클라이맥스 케이스 (초반 고점 -> 중반 푹 꺼짐 -> 막판 결말 버프)
+        elif peak_idx < mid_point and drop_rate > 30 and rebound_rate > 15:
+            insight += f"- **[중반부 락인(Lock-in) 붕괴 및 결말 버프]:** 전반부인 **{peak_ep}회({peak_val:.3f}%)**에 일찌감치 고점을 찍은 뒤, 극 중반인 **{min_ep}회({min_val:.3f}%)**까지 시청률이 무려 **{drop_rate:.1f}%**나 증발하는 심각한 허리 부실 현상을 보였습니다. 다행히 최종회에서 직전 회차 대비 **{rebound_rate:.1f}%** 급반등({last_val:.3f}%)하며 간신히 체면은 치렀으나, 이는 서사의 몰입이라기보다 '결말 확인용' 일회성 복귀일 확률이 높습니다. 초반 후킹력은 좋았으나 스토리를 끌고 가는 동력이 크게 부족했습니다.\n"
+            
+        # 패턴 3: 용두사미형 (초반 고점 -> 끝까지 우하향 이탈)
+        elif peak_idx < mid_point and drop_rate > 25 and rebound_rate <= 15:
+            insight += f"- **[우하향 곡선 및 뒷심 상실]:** {peak_ep}회에 최고점({peak_val:.3f}%)을 기록한 이후 뚜렷한 하락세가 멈추지 않았습니다. 최고점 대비 최저점({min_val:.3f}%, {min_ep}회)의 낙폭이 **{drop_rate:.1f}%**에 달하며, 최종회까지 반등을 만들어내지 못했습니다. 초기 마케팅과 참신함으로 첫 유입은 끌어냈으나, 전개의 흡인력이 대중의 체류 시간을 끝까지 담보하지 못한 전형적인 '용두사미' 패턴입니다.\n"
+            
+        # 패턴 4: 진정한 효자 IP (견고한 우상향)
+        elif peak_idx >= n_eps - 2 and first_val < peak_val and drop_rate < 30:
+            insight += f"- **[견고한 우상향 및 완벽한 락인]:** 첫 회({first_val:.3f}%) 시작 이후 큰 폭의 시청자 이탈(최대 낙폭 {drop_rate:.1f}%) 없이 후반부로 갈수록 탄력을 받는 훌륭한 시청률 곡선을 그렸습니다. 종영 직전인 **{peak_ep}회에 최고점({peak_val:.3f}%)**을 경신했다는 것은 극의 빌드업이 대중에게 완벽히 먹혀들었음을 방증합니다. 코어 팬덤을 끝까지 끌고 간 모범적인 우상향 웰메이드 프로젝트입니다.\n"
+            
+        # 패턴 5: 콘크리트 박스권 (오르지도 내리지도 않음)
+        elif drop_rate < 20:
+            insight += f"- **[단단한 박스권 및 코어 유지]:** 방영 내내 최고점({peak_val:.3f}%)과 최저점({min_val:.3f}%)의 차이가 불과 **{drop_rate:.1f}%** 이내로 좁게 묶이며, 이탈 없는 콘크리트 시청층을 보여주었습니다. 폭발적인 외부 바이럴(신규 유입)은 부족했으나, 극의 톤앤매너를 좋아하는 고정 타겟층이 단 한 번의 큰 이탈 없이 자리를 지켜준 안정적인 성과입니다.\n"
+            
+        # 패턴 6: 롤러코스터 (위아래 기복이 심함)
+        else:
+            insight += f"- **[불안정한 시청 롤러코스터]:** 최고점({peak_val:.3f}%, {peak_ep}회)과 최저점({min_val:.3f}%, {min_ep}회) 사이의 변동폭이 크고 흐름을 예측하기 힘든 패턴을 보였습니다. 에피소드의 재미나 외부 경쟁 상황에 따라 시청자가 들고 나는 현상이 심했습니다. 시청 습관이 단단히 정착되지 않은 만큼, 향후 유사 기획 시 방영 시간대 고정이나 전후 리드인(Lead-in)의 강력한 전략적 지원이 필요해 보입니다.\n"
     else:
-        insight += f"- **[안정적 교두보 확보]:** 특별한 폭등이나 급락 없이 채널의 기본 체력을 지켜냈습니다. 차기 대작 편성을 위한 안정적인 시청권을 방어하며 가교 역할을 충실히 수행한 프로젝트였습니다.\n"
+        # 단막극 혹은 데이터가 부족한 경우
+        if retention < 70:
+            insight += f"- **[이탈 제어 실패]:** 최고점 대비 종영 유지율이 **{retention:.1f}%**에 그쳤습니다. 방영 기간 내내 시청층 하락을 방어하는 데 뚜렷한 취약점을 드러냈습니다.\n"
+        elif growth > 40:
+            insight += f"- **[화제성 견인 증명]:** 첫 회 대비 시청률을 급격히 끌어올리며 방영 기간 내내 시청자들의 이목을 사로잡는 강력한 에너지를 발휘했습니다.\n"
+        else:
+            insight += f"- **[안정적 교두보 확보]:** 특별한 폭등이나 급락 없이 채널의 기본 체력을 지켜내며 편성 띠의 교두보 역할을 충실히 수행했습니다.\n"
 
     return insight
 
@@ -206,7 +252,6 @@ if df_drama is not None and not df_drama.empty:
                 p_sub = active_df[active_df['프로그램명'] == p]
                 if not p_sub.empty:
                     avg_x, avg_y = p_sub[x_ax].mean(), p_sub[y_ax].mean()
-                    # 💡 [핵심 수정] 버블 크기: 제안 A (타겟 가성비 = 수도권2049 / 수도권가구 비율)
                     avg_2049 = p_sub['수도권 2049'].mean()
                     avg_su_hh = p_sub['수도권 가구'].mean()
                     target_ratio = (avg_2049 / avg_su_hh * 100) if avg_su_hh > 0 else 0
@@ -219,7 +264,6 @@ if df_drama is not None and not df_drama.empty:
                 
                 st.info("💡 **버블 차트 가이드:** X축과 Y축은 선택 지표를, **버블의 크기**는 가구 시청률 대비 수도권 2049 시청률의 비중(타겟 가성비)을 나타냅니다. 우상단에 위치할수록 대중성을, 버블이 클수록 젊은 타겟을 꽉 잡은 고효율 작품입니다.")
                 
-                # 💡 [핵심 수정] 타겟가성비 기준으로 Top 3 추출 및 해석
                 top3_bubble = b_df.sort_values("타겟가성비", ascending=False).head(3)
                 if not top3_bubble.empty:
                     st.markdown("**🏆 [타겟 가성비 Top 3] 가구 시청률 대비 2049 타겟이 가장 밀집된 알짜 작품**")
@@ -258,13 +302,28 @@ if df_drama is not None and not df_drama.empty:
         rank_metric = st.radio("📊 기준 지표", ["수도권 2049", "수도권 가구", "전국 가구"], horizontal=True, key="rank_radio")
         r1, r2 = st.columns(2)
         with r1:
+            st.markdown("**📁 프로그램 전체 평균 순위**")
             avg_df = f_df.groupby('프로그램명')[rank_metric].mean().round(3).reset_index().sort_values(rank_metric, ascending=False).reset_index(drop=True)
             avg_df.index += 1; st.dataframe(avg_df.style.format({rank_metric: "{:.3f}%"}), width='stretch')
         with r2:
-            all_eps = sorted([int(e) for e in f_df['회차'].unique() if e > 0]); sel_eps = st.multiselect("회차 선택", all_eps, default=[1] if 1 in all_eps else [])
-            if sel_eps:
-                ep_avg_df = f_df[f_df['회차'].isin(sel_eps)].groupby('프로그램명')[rank_metric].mean().round(3).reset_index().sort_values(rank_metric, ascending=False).reset_index(drop=True)
-                ep_avg_df.index += 1; st.dataframe(ep_avg_df.style.format({rank_metric: "{:.3f}%"}), width='stretch')
+            st.markdown("**🔢 특정 회차 비교**")
+            show_final_only = st.checkbox("🏁 각 프로그램별 '최종회(마지막 회차)'만 비교하기")
+            
+            if show_final_only:
+                final_eps_data = f_df.sort_values(['프로그램명', '회차']).drop_duplicates('프로그램명', keep='last')
+                ep_avg_df = final_eps_data.groupby('프로그램명')[rank_metric].mean().round(3).reset_index().sort_values(rank_metric, ascending=False).reset_index(drop=True)
+                st.info("💡 각 드라마의 마지막 방송(10회, 16회 등) 성적만 모아온 결과입니다.")
+            else:
+                all_eps = sorted([int(e) for e in f_df['회차'].unique() if e > 0])
+                sel_eps = st.multiselect("비교할 회차 번호 선택", all_eps, default=[1] if 1 in all_eps else [])
+                if sel_eps:
+                    ep_avg_df = f_df[f_df['회차'].isin(sel_eps)].groupby('프로그램명')[rank_metric].mean().round(3).reset_index().sort_values(rank_metric, ascending=False).reset_index(drop=True)
+                else:
+                    ep_avg_df = pd.DataFrame()
+
+            if not ep_avg_df.empty:
+                ep_avg_df.index += 1
+                st.dataframe(ep_avg_df.style.format({rank_metric: "{:.3f}%"}), width='stretch')
 
     with tab4:
         target_p = st.selectbox("🎯 분석 대상 선택", sorted(df_drama['프로그램명'].unique()), key="deep_target")
