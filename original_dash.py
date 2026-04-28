@@ -9,7 +9,7 @@ import urllib.parse
 # --- [1. 보안 시스템] ---
 def check_password():
     def password_entered():
-        if st.session_state.get("password", "") == "ena1234":
+        if st.session_state.get("password", "") == "qwe123":
             st.session_state["password_correct"] = True
             if "password" in st.session_state:
                 del st.session_state["password"]
